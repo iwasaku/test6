@@ -186,7 +186,7 @@ tm.define("TitleScene", {
                     fillStyle: "#fff",
                     fontSize: 64,
                     fontFamily: FONT_FAMILY,
-                    text: "ZGZG SPTNKS",
+                    text: "ZG-ZG SPTNK",
                     align: "center",
                 },
                 {
@@ -650,7 +650,7 @@ tm.define("GameScene", {
                 this.tweetButton.onclick = function () {
                     var twitterURL = tm.social.Twitter.createURL({
                         type: "tweet",
-                        text: "ZGZG SPTNK" + amStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum,
+                        text: "ZG-ZG SPTNK" + amStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum,
                         hashtags: ["ネムレス", "NEMLESSS"],
                         url: "https://iwasaku.github.io/test6/ZGZG/index.html",
                     });
