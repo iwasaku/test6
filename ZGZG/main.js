@@ -1,9 +1,12 @@
 //console.log = function () { };  // ログを出す時にはコメントアウトする
 
+var FPS = 60;  // 60フレ
+
 var SCREEN_WIDTH = 1080;              // スクリーン幅
 var SCREEN_HEIGHT = 1920;              // スクリーン高さ
 var SCREEN_CENTER_X = SCREEN_WIDTH / 2;   // スクリーン幅の半分
 var SCREEN_CENTER_Y = SCREEN_HEIGHT / 2;  // スクリーン高さの半分
+
 var FONT_FAMILY = "'Press Start 2P','Meiryo',sans-serif";
 var ASSETS = {
     "player": "./resource/utena_128.png",
@@ -80,6 +83,7 @@ var udonArray = [];
 var nowScore = 0;
 var totalSec = 0;
 var randomSeed = 3557;
+var anotherMode = Boolean(0);
 
 const stageUdonNumTbl = [
     1,
@@ -112,7 +116,7 @@ tm.main(function () {
     app.resize(SCREEN_WIDTH, SCREEN_HEIGHT);    // サイズ(解像度)設定
     app.fitWindow();                            // 自動フィッティング有効
     app.background = "rgba(77, 136, 255, 1.0)"; // 背景色
-    app.fps = 60;                               // フレーム数
+    app.fps = FPS;                               // フレーム数
 
     var loading = tm.ui.LoadingScene({
         assets: ASSETS,
@@ -198,13 +202,44 @@ tm.define("TitleScene", {
                     x: SCREEN_CENTER_X,
                     y: SCREEN_CENTER_Y + 128,
                 },
+                {
+                    type: "FlatButton", name: "anotherButton",
+                    init: [
+                        {
+                            text: "ANOTHER",
+                            fontFamily: FONT_FAMILY,
+                            fontSize: 32,
+                            bgColor: "hsl(240, 0%, 70%)",
+                        }
+                    ],
+                    x: SCREEN_CENTER_X,
+                    y: SCREEN_CENTER_Y + 256,
+                    alpha: 0.0,
+                },
             ]
         });
 
         this.localTimer = 0;
+        var anotherModeStr = localStorage.getItem("amEnable");
+        if (anotherModeStr === null) {
+            this.anotherButton.sleep();
+        } else if (anotherModeStr === "0") {
+            this.anotherButton.sleep();
+        } else {
+            this.anotherButton.setAlpha(1, 0);
+            this.anotherButton.wakeUp();
+        }
 
         var self = this;
         this.startButton.onpointingstart = function () {
+            anotherMode = Boolean(0);
+            stageTimer = 0;
+            self.app.replaceScene(GameScene());
+        };
+
+        this.anotherButton.onpointingstart = function () {
+            anotherMode = Boolean(1);
+            stageTimer = 90 * FPS;
             self.app.replaceScene(GameScene());
         };
     },
@@ -439,12 +474,12 @@ tm.define("GameScene", {
         var self = this;
         this.restartButton.onpointingstart = function () {
             self.app.replaceScene(GameScene());
-            stageTimer = 0;
+            if (anotherMode) stageTimer = 90 * FPS;
+            else stageTimer = 0;
         };
 
         this.buttonAlpha = 0.0;
-
-        randomSeed = 3557;
+        if (!anotherMode) randomSeed = 3557;
         nowScore = 0;
         stageInitTimer = 0;
         stageNum = 0;
@@ -495,6 +530,7 @@ tm.define("GameScene", {
         if (player.status === PL_STATUS.INIT) {
             if (stageInitTimer === 0) {
                 var tmpStageNum = stageNum;
+                if (anotherMode) tmpStageNum += 10;
                 stageNum++;
                 stageTimer += 30 * app.fps + 1;
                 this.initStageNumLabel.text = "STAGE\n\n" + stageNum;
@@ -609,15 +645,21 @@ tm.define("GameScene", {
 
                 var self = this;
                 // tweet ボタン
+                var amStr = "";
+                if (anotherMode) amStr = "(ANOTHER)"
                 this.tweetButton.onclick = function () {
                     var twitterURL = tm.social.Twitter.createURL({
                         type: "tweet",
-                        text: "ZGZG SPTNK スコア: " + self.nowScoreLabel.text + "（ステージ：" + stageNum + "）",
+                        text: "ZGZG SPTNK" + amStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum,
                         hashtags: ["ネムレス", "NEMLESSS"],
                         url: "https://iwasaku.github.io/test6/ZGZG/index.html",
                     });
                     window.open(twitterURL);
                 };
+                // 10面以上クリアでANOTHERモード開放
+                if (stageNum >= 11) {
+                    localStorage.setItem("amEnable", "1");
+                }
             }
 
             this.buttonAlpha += 0.05;
@@ -772,15 +814,21 @@ function clearArrays() {
 }
 
 // 指定の範囲で乱数を求める
+// ※start < end
 // ※startとendを含む
 function myRandom(start, end) {
-    var mod = (end - start) + 1;
-    randomSeed = (randomSeed * 5) + 1;
-    for (; ;) {
-        if (randomSeed < 2147483647) break;
-        randomSeed -= 2147483647;
+    if (anotherMode) {
+        var max = (end - start) + 1;
+        return Math.floor(Math.random() * Math.floor(max)) + start;
+    } else {
+        var mod = (end - start) + 1;
+        randomSeed = (randomSeed * 5) + 1;
+        for (; ;) {
+            if (randomSeed < 2147483647) break;
+            randomSeed -= 2147483647;
+        }
+        return (randomSeed % mod) + start;
     }
-    return (randomSeed % mod) + start;
 }
 
 // ２点間の距離を求める
