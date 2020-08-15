@@ -1,4 +1,4 @@
-//console.log = function () { };  // ログを出す時にはコメントアウトする
+console.log = function () { };  // ログを出す時にはコメントアウトする
 
 var FPS = 60;  // 60フレ
 
@@ -504,6 +504,10 @@ tm.define("GameScene", {
         if (!player.status.isStart) {
         } else if (player.status === PL_STATUS.MOVE) {
             player.status = PL_STATUS.ROTATION;
+            if (--player.consecutiveHitStatus <= 0) {
+                player.consecutiveHitStatus = 0;
+                player.consecutiveHitCounter = 0;
+            }
         }
     },
 
@@ -550,6 +554,8 @@ tm.define("GameScene", {
                     player.spd += 0.25;
                     if (player.spd >= 15.0) player.spd = 15.0;
                 }
+                player.consecutiveHitStatus = 0;
+                player.consecutiveHitCounter = 0;
 
                 // 一旦クリア
                 clearArrays();
@@ -695,7 +701,8 @@ tm.define("Player", {
         this.setBoundingType("circle");
         this.radius = 16;
         this.spd = 10.0;
-
+        this.consecutiveHitStatus = 0;
+        this.consecutiveHitCounter = 0;
         this.status = PL_STATUS.INIT;
     },
 
@@ -748,11 +755,15 @@ tm.define("Udon", {
         // 自機との衝突判定
         if (this.isHitElement(player)) {
             coinSE.play();
-            nowScore += 1;
+            nowScore += 2 ** player.consecutiveHitCounter;   // 1 2 4 8 16 32
+            console.log("s=" + player.consecutiveHitStatus + " p=" + (2 ** player.consecutiveHitCounter));
+            player.consecutiveHitCounter++;
+            player.consecutiveHitStatus = 2;
             if (--stageUdonNum <= 0) {
                 player.status = PL_STATUS.INIT;
-                nowScore += Math.floor((stageTimer / app.fps) / 10.0);
-            };
+                nowScore += Math.floor((stageTimer / app.fps) / 10.0);  // クリアボーナス
+            }
+
             this.remove();
         }
     },
