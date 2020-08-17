@@ -372,7 +372,7 @@ tm.define("GameScene", {
                     fontSize: 32,
                     fontFamily: FONT_FAMILY,
                     text: "TIME",
-                    align: "right",
+                    align: "center",
                 },
                 {
                     type: "Label", name: "nowStageTimerLabel",
@@ -384,7 +384,7 @@ tm.define("GameScene", {
                     fontSize: 64,
                     fontFamily: FONT_FAMILY,
                     text: "0",
-                    align: "right",
+                    align: "center",
                 },
                 {
                     type: "Label", name: "nowStageNumStrLabel",
@@ -423,18 +423,6 @@ tm.define("GameScene", {
                     align: "center",
                 },
                 {
-                    type: "Label", name: "gameOverScoreLabel",
-                    x: SCREEN_CENTER_X,
-                    y: (SCREEN_CENTER_Y / 2) + 64,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 32,
-                    fontFamily: FONT_FAMILY,
-                    text: "",
-                    align: "center",
-                },
-                {
                     type: "FlatButton", name: "tweetButton",
                     init: [
                         {
@@ -467,7 +455,6 @@ tm.define("GameScene", {
         });
 
         this.gameOverLabel.setAlpha(0.0);
-        this.gameOverScoreLabel.setAlpha(0.0);
         this.tweetButton.sleep();
         this.restartButton.sleep();
 
@@ -673,8 +660,6 @@ tm.define("GameScene", {
                 this.buttonAlpha = 1.0;
             }
             this.gameOverLabel.setAlpha(this.buttonAlpha);
-            this.gameOverScoreLabel.text = "SCORE:" + this.nowScoreLabel.text;
-            this.gameOverScoreLabel.setAlpha(this.buttonAlpha);
             this.tweetButton.setAlpha(this.buttonAlpha);
             this.restartButton.setAlpha(this.buttonAlpha);
             if (this.buttonAlpha > 0.7) {
