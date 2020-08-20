@@ -83,7 +83,7 @@ var udonArray = [];
 var nowScore = 0;
 var totalSec = 0;
 var randomSeed = 3557;
-var anotherMode = Boolean(0);
+var randomMode = Boolean(0);
 
 const stageUdonNumTbl = [
     1,
@@ -203,10 +203,10 @@ tm.define("TitleScene", {
                     y: SCREEN_CENTER_Y + 128,
                 },
                 {
-                    type: "FlatButton", name: "anotherButton",
+                    type: "FlatButton", name: "randomModeButton",
                     init: [
                         {
-                            text: "ANOTHER",
+                            text: "RANDOM",
                             fontFamily: FONT_FAMILY,
                             fontSize: 32,
                             bgColor: "hsl(240, 0%, 70%)",
@@ -220,25 +220,25 @@ tm.define("TitleScene", {
         });
 
         this.localTimer = 0;
-        var anotherModeStr = localStorage.getItem("amEnable");
-        if (anotherModeStr === null) {
-            this.anotherButton.sleep();
-        } else if (anotherModeStr === "0") {
-            this.anotherButton.sleep();
+        var randomModeStr = localStorage.getItem("rmEnable");
+        if (randomModeStr === null) {
+            this.randomModeButton.sleep();
+        } else if (randomModeStr === "0") {
+            this.randomModeButton.sleep();
         } else {
-            this.anotherButton.setAlpha(1, 0);
-            this.anotherButton.wakeUp();
+            this.randomModeButton.setAlpha(1, 0);
+            this.randomModeButton.wakeUp();
         }
 
         var self = this;
         this.startButton.onpointingstart = function () {
-            anotherMode = Boolean(0);
+            randomMode = Boolean(0);
             stageTimer = 0;
             self.app.replaceScene(GameScene());
         };
 
-        this.anotherButton.onpointingstart = function () {
-            anotherMode = Boolean(1);
+        this.randomModeButton.onpointingstart = function () {
+            randomMode = Boolean(1);
             stageTimer = 90 * FPS;
             self.app.replaceScene(GameScene());
         };
@@ -461,12 +461,12 @@ tm.define("GameScene", {
         var self = this;
         this.restartButton.onpointingstart = function () {
             self.app.replaceScene(GameScene());
-            if (anotherMode) stageTimer = 90 * FPS;
+            if (randomMode) stageTimer = 90 * FPS;
             else stageTimer = 0;
         };
 
         this.buttonAlpha = 0.0;
-        if (!anotherMode) randomSeed = 3557;
+        if (!randomMode) randomSeed = 3557;
         nowScore = 0;
         stageInitTimer = 0;
         stageNum = 0;
@@ -521,7 +521,7 @@ tm.define("GameScene", {
         if (player.status === PL_STATUS.INIT) {
             if (stageInitTimer === 0) {
                 var tmpStageNum = stageNum;
-                if (anotherMode) tmpStageNum += 10;
+                if (randomMode) tmpStageNum += 10;
                 stageNum++;
                 stageTimer += 30 * app.fps + 1;
                 this.initStageNumLabel.text = "STAGE\n\n" + stageNum;
@@ -638,20 +638,20 @@ tm.define("GameScene", {
 
                 var self = this;
                 // tweet ボタン
-                var amStr = "";
-                if (anotherMode) amStr = "(ANOTHER)"
+                var rmStr = "";
+                if (randomMode) rmStr = "(RANDOM)"
                 this.tweetButton.onclick = function () {
                     var twitterURL = tm.social.Twitter.createURL({
                         type: "tweet",
-                        text: "ZG-ZG SPTNK" + amStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum,
+                        text: "ZG-ZG SPTNK" + rmStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum,
                         hashtags: ["ネムレス", "NEMLESSS"],
                         url: "https://iwasaku.github.io/test6/ZGZG/index.html",
                     });
                     window.open(twitterURL);
                 };
-                // 10面以上クリアでANOTHERモード開放
+                // 10面以上クリアでRANDOMモード開放
                 if (stageNum >= 11) {
-                    localStorage.setItem("amEnable", "1");
+                    localStorage.setItem("rmEnable", "1");
                 }
             }
 
@@ -740,8 +740,10 @@ tm.define("Udon", {
         // 自機との衝突判定
         if (this.isHitElement(player)) {
             coinSE.play();
-            nowScore += 2 ** player.consecutiveHitCounter;   // 1 2 4 8 16 32
-            console.log("s=" + player.consecutiveHitStatus + " p=" + (2 ** player.consecutiveHitCounter));
+            var pnt = 2 ** player.consecutiveHitCounter;   // 1 2 4 8 16 32;
+            nowScore += pnt
+            console.log("s=" + player.consecutiveHitStatus + " p=" + pnt);
+            if (pnt > 1) stageTimer += 30;
             player.consecutiveHitCounter++;
             player.consecutiveHitStatus = 2;
             if (--stageUdonNum <= 0) {
@@ -813,7 +815,7 @@ function clearArrays() {
 // ※start < end
 // ※startとendを含む
 function myRandom(start, end) {
-    if (anotherMode) {
+    if (randomMode) {
         var max = (end - start) + 1;
         return Math.floor(Math.random() * Math.floor(max)) + start;
     } else {
