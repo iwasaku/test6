@@ -743,7 +743,8 @@ tm.define("Udon", {
             var pnt = 2 ** player.consecutiveHitCounter;   // 1 2 4 8 16 32;
             nowScore += pnt
             console.log("s=" + player.consecutiveHitStatus + " p=" + pnt);
-            if (pnt > 1) stageTimer += 30;
+            if (randomMode) stageTimer += 30;
+            else if (pnt > 1) stageTimer += 30;
             player.consecutiveHitCounter++;
             player.consecutiveHitStatus = 2;
             if (--stageUdonNum <= 0) {
