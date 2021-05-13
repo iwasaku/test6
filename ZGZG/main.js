@@ -644,7 +644,7 @@ tm.define("GameScene", {
                         type: "tweet",
                         text: "ZG-ZG SPTNK" + rmStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum,
                         hashtags: ["ネムレス", "NEMLESSS"],
-                        url: "https://iwasaku.github.io/test6/ZGZG/index.html",
+                        url: "https://iwasaku.github.io/test6/ZGZG/",
                     });
                     window.open(twitterURL);
                 };
