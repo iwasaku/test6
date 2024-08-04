@@ -1,3 +1,5 @@
+phina.globalize();
+
 console.log = function () { };  // ログを出す時にはコメントアウトする
 
 var FPS = 60;  // 60フレ
@@ -9,25 +11,22 @@ var SCREEN_CENTER_Y = SCREEN_HEIGHT / 2;  // スクリーン高さの半分
 
 var FONT_FAMILY = "'Press Start 2P','Meiryo',sans-serif";
 var ASSETS = {
-    "player": "./resource/utena_128.png",
+    image: {
+        "player": "./resource/utena_128.png",
 
-    "udon": "./resource/udon.png",
-    "enemy": "./resource/planet_128.png",
+        "udon": "./resource/udon.png",
+        "enemy": "./resource/planet_128.png",
 
-    "bg_f": "./resource/bg_front.png",
-    "bg_m": "./resource/bg_middle.png",
-    "bg_b": "./resource/bg_back.png",
-
+        "bg_f": "./resource/bg_front.png",
+        "bg_m": "./resource/bg_middle.png",
+        "bg_b": "./resource/bg_back.png",
+    },
+    sound: {
+        "fall_se": 'https://iwasaku.github.io/test7/NEMLESSSTER/resource/fall.mp3?20200708',
+        "coin_se": 'https://iwasaku.github.io/test7/NEMLESSSTER/resource/coin05.mp3',
+        "jump_se": 'https://iwasaku.github.io/test7/NEMLESSSTER/resource/jump.mp3',
+    }
 };
-const fallSE = new Howl({
-    src: 'https://iwasaku.github.io/test7/NEMLESSSTER/resource/fall.mp3?20200708'
-});
-const coinSE = new Howl({
-    src: 'https://iwasaku.github.io/test7/NEMLESSSTER/resource/coin05.mp3'
-});
-const jumpSE = new Howl({
-    src: 'https://iwasaku.github.io/test7/NEMLESSSTER/resource/jump.mp3'
-});
 
 // 定義
 var PL_STATUS = defineEnum({
@@ -68,6 +67,7 @@ var PL_STATUS = defineEnum({
 var group0 = null;
 var group1 = null;
 var group2 = null;
+var group3 = null;
 var player = null;
 var bgX = SCREEN_WIDTH / 2;
 var bgBackY = 0;
@@ -110,27 +110,46 @@ const stageEnemyNumTbl = [
     13,
 ];
 
-tm.main(function () {
-    // アプリケーションクラスを生成
-    var app = tm.display.CanvasApp("#world");
-    app.resize(SCREEN_WIDTH, SCREEN_HEIGHT);    // サイズ(解像度)設定
-    app.fitWindow();                            // 自動フィッティング有効
-    app.background = "rgba(77, 136, 255, 1.0)"; // 背景色
-    app.fps = FPS;                               // フレーム数
-
-    var loading = tm.ui.LoadingScene({
-        assets: ASSETS,
+phina.main(function () {
+    var app = GameApp({
+        startLabel: 'logo',
         width: SCREEN_WIDTH,
         height: SCREEN_HEIGHT,
+        assets: ASSETS,
+        fps: FPS,
+
+        // シーンのリストを引数で渡す
+        scenes: [
+            {
+                className: 'LogoScene',
+                label: 'logo',
+                nextLabel: 'title',
+            },
+
+            {
+                className: 'TitleScene',
+                label: 'title',
+                nextLabel: 'game',
+            },
+            {
+                className: 'GameScene',
+                label: 'game',
+                nextLabel: 'game',
+            },
+        ]
     });
 
-    // 読み込み完了後に呼ばれるメソッドを登録
-    loading.onload = function () {
-        app.replaceScene(LogoScene());
-    };
+    // iOSなどでユーザー操作がないと音がならない仕様対策
+    // 起動後初めて画面をタッチした時に『無音』を鳴らす
+    app.domElement.addEventListener('touchend', function dummy() {
+        var s = phina.asset.Sound();
+        s.loadFromBuffer();
+        s.play().stop();
+        app.domElement.removeEventListener('touchend', dummy);
+    });
 
-    // ローディングシーンに入れ替える
-    app.replaceScene(loading);
+    // fps表示
+    //app.enableStats();
 
     // 実行
     app.run();
@@ -139,107 +158,87 @@ tm.main(function () {
 /*
  * ロゴ
  */
-tm.define("LogoScene", {
-    superClass: "tm.app.Scene",
+phina.define("LogoScene", {
+    superClass: 'DisplayScene',
 
-    init: function () {
-        this.superInit();
-        this.fromJSON({
-            children: [
-                {
-                    type: "Label", name: "logoLabel",
-                    x: SCREEN_CENTER_X,
-                    y: SCREEN_CENTER_Y,
-                    fillStyle: "#888",
-                    fontSize: 64,
-                    fontFamily: FONT_FAMILY,
-                    text: "UNOFFICIAL GAME",
-                    align: "center",
-                },
-            ]
-        });
+    init: function (option) {
+        this.superInit(option);
+        this.backgroundColor = 'black';
         this.localTimer = 0;
     },
 
     update: function (app) {
-        // 時間が来たらタイトルへ
-        //        if (++this.localTimer >= 5 * app.fps)
-        this.app.replaceScene(TitleScene());
+        // フォント読み込み待ち
+        var self = this;
+        document.fonts.load('12px "Press Start 2P"').then(function () {
+            self.exit();
+        });
     }
 });
 
 /*
  * タイトル
  */
-tm.define("TitleScene", {
-    superClass: "tm.app.Scene",
+phina.define("TitleScene", {
+    superClass: 'DisplayScene',
 
-    init: function () {
-        this.superInit();
-        this.fromJSON({
-            children: [
-                {
-                    type: "Label", name: "titleLabel",
-                    x: SCREEN_CENTER_X,
-                    y: SCREEN_CENTER_Y,
-                    fillStyle: "#fff",
-                    fontSize: 64,
-                    fontFamily: FONT_FAMILY,
-                    text: "ZG-ZG SPTNK",
-                    align: "center",
-                },
-                {
-                    type: "FlatButton", name: "startButton",
-                    init: [
-                        {
-                            text: "START",
-                            fontFamily: FONT_FAMILY,
-                            fontSize: 32,
-                            bgColor: "hsl(240, 0%, 70%)",
-                        }
-                    ],
-                    x: SCREEN_CENTER_X,
-                    y: SCREEN_CENTER_Y + 128,
-                },
-                {
-                    type: "FlatButton", name: "randomModeButton",
-                    init: [
-                        {
-                            text: "RANDOM",
-                            fontFamily: FONT_FAMILY,
-                            fontSize: 32,
-                            bgColor: "hsl(240, 0%, 70%)",
-                        }
-                    ],
-                    x: SCREEN_CENTER_X,
-                    y: SCREEN_CENTER_Y + 256,
-                    alpha: 0.0,
-                },
-            ]
-        });
+    init: function (option) {
+        this.superInit(option);
+        this.backgroundColor = 'black';
+
+        this.titleLabel = Label({
+            text: "ZG-ZG SPTNK",
+            fontSize: 64,
+            fontFamily: FONT_FAMILY,
+            align: "center",
+            fill: "#fff",
+            x: SCREEN_CENTER_X,
+            y: SCREEN_CENTER_Y,
+        }).addChildTo(this);
+
+        this.startButton = Button({
+            text: "START",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            fill: "hsl(240, 0%, 70%)",
+            x: SCREEN_CENTER_X,
+            y: SCREEN_CENTER_Y + 128,
+            cornerRadius: 8,
+        }).addChildTo(this);
+        this.randomModeButton = Button({
+            text: "RANDOM",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            fill: "hsl(240, 0%, 70%)",
+            x: SCREEN_CENTER_X,
+            y: SCREEN_CENTER_Y + 256,
+            cornerRadius: 8,
+        }).addChildTo(this);
+        this.randomModeButton.alpha = 0.0;
 
         this.localTimer = 0;
+
         var randomModeStr = localStorage.getItem("rmEnable");
         if (randomModeStr === null) {
             this.randomModeButton.sleep();
         } else if (randomModeStr === "0") {
             this.randomModeButton.sleep();
         } else {
-            this.randomModeButton.setAlpha(1, 0);
+            this.randomModeButton.alpha = 1.0;
             this.randomModeButton.wakeUp();
         }
 
         var self = this;
-        this.startButton.onpointingstart = function () {
+        this.startButton.onpointstart = function () {
             randomMode = Boolean(0);
             stageTimer = 0;
-            self.app.replaceScene(GameScene());
+            self.exit();
         };
 
-        this.randomModeButton.onpointingstart = function () {
+        this.randomModeButton.onpointstart = function () {
             randomMode = Boolean(1);
             stageTimer = 90 * FPS;
-            self.app.replaceScene(GameScene());
+            self.exit();
         };
     },
 
@@ -247,221 +246,200 @@ tm.define("TitleScene", {
         app.background = "rgba(0, 0, 0, 1.0)"; // 背景色
         // 時間が来たらデモへ
         //        if(++this.localTimer >= 5*app.fps){
-        //            this.app.replaceScene(DemoScene());
+        //            this.exit();
         //        }
-    }
-});
-
-/*
- * デモ
- */
-tm.define("DemoScene", {
-    superClass: "tm.app.Scene",
-
-    init: function () {
-        this.superInit();
-        this.fromJSON({
-            children: [
-                {
-                    type: "Label", name: "demoLabel",
-                    x: SCREEN_CENTER_X,
-                    y: 320,
-                    fillStyle: "#888",
-                    fontSize: 64,
-                    fontFamily: FONT_FAMILY,
-                    text: "",
-                    align: "center",
-                },
-            ]
-        });
-        this.localTimer = 0;
-    },
-
-    update: function (app) {
-        // 時間が来たらタイトルへ
-        if (++this.localTimer >= 5 * app.fps) {
-            this.app.replaceScene(TitleScene());
-        }
-
-        // タッチしたらタイトルへ
-        var pointing = app.pointing;
-        // タッチしているかを判定
-        if (pointing.getPointing()) {
-            this.app.replaceScene(TitleScene());
-        }
     }
 });
 
 /*
  * ゲーム
  */
-tm.define("GameScene", {
-    superClass: "tm.app.Scene",
+phina.define("GameScene", {
+    superClass: 'DisplayScene',
 
-    init: function () {
-        this.superInit();
+    init: function (option) {
+        this.superInit(option);
+        this.backgroundColor = 'black';
 
-        group0 = tm.display.CanvasElement().addChildTo(this);
-        group1 = tm.display.CanvasElement().addChildTo(this);
-        group2 = tm.display.CanvasElement().addChildTo(this);
+        group0 = DisplayElement().addChildTo(this);
+        group1 = DisplayElement().addChildTo(this);
+        group2 = DisplayElement().addChildTo(this);
+        group3 = DisplayElement().addChildTo(this);
 
-        this.bgBack0 = tm.display.Sprite("bg_b", SCREEN_WIDTH, SCREEN_HEIGHT).addChildTo(group0);
-        this.bgBack0.setPosition(bgX, bgBackY);
-        this.bgBack1 = tm.display.Sprite("bg_b", SCREEN_WIDTH, SCREEN_HEIGHT).addChildTo(group0);
-        this.bgBack1.setPosition(bgX, bgBackY - SCREEN_CENTER_Y);
+        this.bgBack0 = phina.display.Sprite("bg_b").addChildTo(group0);
+        this.bgBack0.setPosition(bgX, bgBackY).setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+        this.bgBack1 = phina.display.Sprite("bg_b").addChildTo(group0);
+        this.bgBack1.setPosition(bgX, bgBackY - SCREEN_CENTER_Y).setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        this.bgMiddle0 = tm.display.Sprite("bg_m", SCREEN_WIDTH, SCREEN_HEIGHT).addChildTo(group0);
-        this.bgMiddle0.setPosition(bgX, bgMiddleY);
-        this.bgMiddle1 = tm.display.Sprite("bg_m", SCREEN_WIDTH, SCREEN_HEIGHT).addChildTo(group0);
-        this.bgMiddle1.setPosition(bgX, bgMiddleY - SCREEN_CENTER_Y);
+        this.bgMiddle0 = phina.display.Sprite("bg_m").addChildTo(group0);
+        this.bgMiddle0.setPosition(bgX, bgMiddleY).setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+        this.bgMiddle1 = phina.display.Sprite("bg_m").addChildTo(group0);
+        this.bgMiddle1.setPosition(bgX, bgMiddleY - SCREEN_CENTER_Y).setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        this.bgFront0 = tm.display.Sprite("bg_f", SCREEN_WIDTH, SCREEN_HEIGHT).addChildTo(group0);
-        this.bgFront0.setPosition(bgX, bgFrontY);
-        this.bgFront1 = tm.display.Sprite("bg_f", SCREEN_WIDTH, SCREEN_HEIGHT).addChildTo(group0);
-        this.bgFront1.setPosition(bgX, bgFrontY - SCREEN_CENTER_Y);
+        this.bgFront0 = phina.display.Sprite("bg_f").addChildTo(group0);
+        this.bgFront0.setPosition(bgX, bgFrontY).setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+        this.bgFront1 = phina.display.Sprite("bg_f").addChildTo(group0);
+        this.bgFront1.setPosition(bgX, bgFrontY - SCREEN_CENTER_Y).setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 
         clearArrays();
         player = new Player().addChildTo(group2);
 
-        this.fromJSON({
-            children: [
-                {
-                    type: "Label", name: "initStageNumLabel",
-                    x: SCREEN_CENTER_X,
-                    y: SCREEN_CENTER_Y - 128,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 128,
-                    fontFamily: FONT_FAMILY,
-                    text: "STAGE\n\n1",
-                    align: "center",
-                },
-                {
-                    type: "Label", name: "scoreStrLabel",
-                    x: SCREEN_WIDTH - 16,
-                    y: 32,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 32,
-                    fontFamily: FONT_FAMILY,
-                    text: "SCORE",
-                    align: "right",
-                },
-                {
-                    type: "Label", name: "nowScoreLabel",
-                    x: SCREEN_WIDTH - 16,
-                    y: 64,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 32,
-                    fontFamily: FONT_FAMILY,
-                    text: "0",
-                    align: "right",
-                },
-                {
-                    type: "Label", name: "timeStrLabel",
-                    x: SCREEN_CENTER_X,
-                    y: 32,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 32,
-                    fontFamily: FONT_FAMILY,
-                    text: "TIME",
-                    align: "center",
-                },
-                {
-                    type: "Label", name: "nowStageTimerLabel",
-                    x: SCREEN_CENTER_X,
-                    y: 96,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 64,
-                    fontFamily: FONT_FAMILY,
-                    text: "0",
-                    align: "center",
-                },
-                {
-                    type: "Label", name: "nowStageNumStrLabel",
-                    x: 0 + 16,
-                    y: 32,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 32,
-                    fontFamily: FONT_FAMILY,
-                    text: "STAGE",
-                    align: "left",
-                },
-                {
-                    type: "Label", name: "nowStageNumLabel",
-                    x: 0 + 16,
-                    y: 64,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 32,
-                    fontFamily: FONT_FAMILY,
-                    text: "1",
-                    align: "left",
-                },
-                {
-                    type: "Label", name: "gameOverLabel",
-                    x: SCREEN_CENTER_X,
-                    y: SCREEN_CENTER_Y / 2,
-                    fillStyle: "#fff",
-                    shadowColor: "#000",
-                    shadowBlur: 10,
-                    fontSize: 64,
-                    fontFamily: FONT_FAMILY,
-                    text: "GAME OVER",
-                    align: "center",
-                },
-                {
-                    type: "FlatButton", name: "tweetButton",
-                    init: [
-                        {
-                            text: "TWEET",
-                            fontFamily: FONT_FAMILY,
-                            fontSize: 32,
-                            bgColor: "hsl(240, 80%, 70%)",
-                        }
-                    ],
-                    x: SCREEN_CENTER_X - 160,
-                    y: SCREEN_CENTER_Y + (SCREEN_CENTER_Y / 2),
-                    alpha: 0.0,
-                },
-                {
-                    type: "FlatButton", name: "restartButton",
-                    init: [
-                        {
-                            text: "RESTART",
-                            fontFamily: FONT_FAMILY,
-                            fontSize: 32,
-                            cornerRadius: 8,
-                            bgColor: "hsl(240, 0%, 70%)",
-                        }
-                    ],
-                    x: SCREEN_CENTER_X + 160,
-                    y: SCREEN_CENTER_Y + (SCREEN_CENTER_Y / 2),
-                    alpha: 0.0,
-                },
-            ]
-        });
+        this.initStageNumLabel = Label({
+            text: "STAGE\n\n1",
+            fontSize: 128,
+            fontFamily: FONT_FAMILY,
+            align: "center",
+            fill: "#fff",
+            shadow: "#000",
+            shadowBlur: 10,
+            x: SCREEN_CENTER_X,
+            y: SCREEN_CENTER_Y - 128,
+        }).addChildTo(group3);
+        this.scoreStrLabel = Label({
+            text: "SCORE",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            align: "right",
+            fill: "#fff",
+            shadow: "#000",
+            shadowBlur: 10,
+            x: SCREEN_WIDTH - 16,
+            y: 32,
+        }).addChildTo(group3);
+        this.nowScoreLabel = Label({
+            text: "0",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            align: "right",
+            fill: "#fff",
+            shadow: "#000",
+            shadowBlur: 10,
+            x: SCREEN_WIDTH - 16,
+            y: 64,
+        }).addChildTo(group3);
+        this.timeStrLabel = Label({
+            text: "TIME",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            align: "center",
+            fill: "#fff",
+            shadow: "#000",
+            shadowBlur: 10,
+            x: SCREEN_CENTER_X,
+            y: 32,
+        }).addChildTo(group3);
+        this.nowStageTimerLabel = Label({
+            text: "0",
+            fontSize: 64,
+            fontFamily: FONT_FAMILY,
+            align: "center",
+            fill: "#fff",
+            shadow: "#000",
+            shadowBlur: 10,
+            x: SCREEN_CENTER_X,
+            y: 96,
+        }).addChildTo(group3);
+        this.nowStageNumStrLabel = Label({
+            text: "STAGE",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            align: "left",
+            fill: "#fff",
+            shadow: "#000",
+            shadowBlur: 10,
+            x: 0 + 16,
+            y: 32,
+        }).addChildTo(group3);
+        this.nowStageNumLabel = Label({
+            text: "1",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            align: "left",
+            fill: "#fff",
+            shadow: "#000",
+            shadowBlur: 10,
+            x: 0 + 16,
+            y: 64,
+        }).addChildTo(group3);
+        this.gameOverLabel = Label({
+            text: "GAME OVER",
+            fontSize: 64,
+            fontFamily: FONT_FAMILY,
+            align: "center",
+            fill: "#fff",
+            shadow: "#000",
+            shadowBlur: 10,
+            x: SCREEN_CENTER_X,
+            y: SCREEN_CENTER_Y / 2,
+        }).addChildTo(group3);
 
-        this.gameOverLabel.setAlpha(0.0);
+        this.screenButton = Button({
+            text: "",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            fill: "#fff",
+            x: SCREEN_CENTER_X,
+            y: SCREEN_CENTER_Y,
+            width: SCREEN_WIDTH,
+            height: SCREEN_HEIGHT,
+        }).addChildTo(group2)
+        this.tweetButton = Button({
+            text: "POST",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            fill: "#7575EF",
+            x: SCREEN_CENTER_X - 160,
+            y: SCREEN_CENTER_Y + (SCREEN_CENTER_Y / 2),
+            cornerRadius: 8,
+            width: 240,
+            height: 60,
+        }).addChildTo(group3);
+        this.restartButton = Button({
+            text: "RESTART",
+            fontSize: 32,
+            fontFamily: FONT_FAMILY,
+            fill: "#B2B2B2",
+            x: SCREEN_CENTER_X + 160,
+            y: SCREEN_CENTER_Y + (SCREEN_CENTER_Y / 2),
+            cornerRadius: 8,
+            width: 240,
+            height: 60,
+        }).addChildTo(group3);
+
+        this.gameOverLabel.alpha = 0.0;
+        this.screenButton.alpha = 0.0;
+        this.tweetButton.alpha = 0.0;
+        this.restartButton.alpha = 0.0;
         this.tweetButton.sleep();
         this.restartButton.sleep();
 
+        this.screenButton.onpointstart = function () {
+            if (player.status.isDead) return;
+
+            if (!player.status.isStart) {
+            } else if (player.status === PL_STATUS.ROTATION) {
+                player.status = PL_STATUS.MOVE;
+                SoundManager.play("jump_se");
+                stageTimer -= 60;
+            }
+        };
+        this.screenButton.onpointend = function () {
+            if (player.status.isDead) return;
+
+            if (!player.status.isStart) {
+            } else if (player.status === PL_STATUS.MOVE) {
+                player.status = PL_STATUS.ROTATION;
+                if (--player.consecutiveHitStatus <= 0) {
+                    player.consecutiveHitStatus = 0;
+                    player.consecutiveHitCounter = 0;
+                }
+            }
+        };
         var self = this;
-        this.restartButton.onpointingstart = function () {
-            self.app.replaceScene(GameScene());
+        this.restartButton.onpointstart = function () {
             if (randomMode) stageTimer = 90 * FPS;
             else stageTimer = 0;
+            self.exit();
         };
 
         this.buttonAlpha = 0.0;
@@ -473,34 +451,10 @@ tm.define("GameScene", {
         this.stopBGM = false;
     },
 
-    onpointingstart: function () {
-        if (player.status.isDead) return;
-
-        if (!player.status.isStart) {
-        } else if (player.status === PL_STATUS.ROTATION) {
-            player.status = PL_STATUS.MOVE;
-            jumpSE.play();
-            stageTimer -= 60;
-        }
-    },
-
-    onpointingend: function () {
-        if (player.status.isDead) return;
-
-        if (!player.status.isStart) {
-        } else if (player.status === PL_STATUS.MOVE) {
-            player.status = PL_STATUS.ROTATION;
-            if (--player.consecutiveHitStatus <= 0) {
-                player.consecutiveHitStatus = 0;
-                player.consecutiveHitCounter = 0;
-            }
-        }
-    },
-
     update: function (app) {
 
         if (!player.status.isDead) {
-            // 背景１スクロール
+            // 背景スクロール
             bgBackY += 2;
             if (bgBackY > SCREEN_HEIGHT / 2) bgBackY = -SCREEN_HEIGHT / 2;
             this.bgBack0.setPosition(bgX, bgBackY);
@@ -524,7 +478,7 @@ tm.define("GameScene", {
                 stageNum++;
                 stageTimer += 30 * app.fps + 1;
                 this.initStageNumLabel.text = "STAGE\n\n" + stageNum;
-                this.initStageNumLabel.setAlpha(1.0);
+                this.initStageNumLabel.alpha = 1.0;
                 this.nowScoreLabel.text = nowScore;
                 this.nowStageTimerLabel.text = Math.floor(stageTimer / app.fps);
                 this.nowStageNumLabel.text = stageNum;
@@ -614,7 +568,7 @@ tm.define("GameScene", {
             if (++stageInitTimer > 1 * app.fps) {
                 stageInitTimer = 0;
                 player.status = PL_STATUS.ROTATION;
-                this.initStageNumLabel.setAlpha(0.0);
+                this.initStageNumLabel.alpha = 0.0;
             }
             return;
         }
@@ -632,7 +586,7 @@ tm.define("GameScene", {
             this.nowStageTimerLabel.text = Math.floor(stageTimer / app.fps);
         } else {
             if (!this.stopBGM) {
-                fallSE.play();
+                SoundManager.play("fall_se");
                 this.stopBGM = true;
 
                 var self = this;
@@ -640,9 +594,9 @@ tm.define("GameScene", {
                 var rmStr = "";
                 if (randomMode) rmStr = "(RANDOM)"
                 this.tweetButton.onclick = function () {
-                    var twitterURL = tm.social.Twitter.createURL({
+                    var twitterURL = phina.social.Twitter.createURL({
                         type: "tweet",
-                        text: "ZG-ZG SPTNK" + rmStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum,
+                        text: "ZG-ZG SPTNK" + rmStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum + "\n",
                         hashtags: ["ネムレス", "NEMLESSS"],
                         url: "https://iwasaku.github.io/test6/ZGZG/",
                     });
@@ -658,9 +612,9 @@ tm.define("GameScene", {
             if (this.buttonAlpha > 1.0) {
                 this.buttonAlpha = 1.0;
             }
-            this.gameOverLabel.setAlpha(this.buttonAlpha);
-            this.tweetButton.setAlpha(this.buttonAlpha);
-            this.restartButton.setAlpha(this.buttonAlpha);
+            this.gameOverLabel.alpha = this.buttonAlpha;
+            this.tweetButton.alpha = this.buttonAlpha;
+            this.restartButton.alpha = this.buttonAlpha;
             if (this.buttonAlpha > 0.7) {
                 this.tweetButton.wakeUp();
                 this.restartButton.wakeUp();
@@ -672,15 +626,15 @@ tm.define("GameScene", {
 /*
  * Player
  */
-tm.define("Player", {
-    superClass: "tm.app.Sprite",
+phina.define("Player", {
+    superClass: "Sprite",
 
-    init: function () {
-        this.superInit("player", 128, 128);
+    init: function (option) {
+        this.superInit("player");
         this.direct = '';
         this.zRot = 0;
         this.zRotOfs = 0;
-        this.setPosition(SCREEN_CENTER_X, SCREEN_CENTER_Y).setScale(1, 1);
+        this.setPosition(SCREEN_CENTER_X, SCREEN_CENTER_Y).setSize(128, 128).setScale(1, 1);
         this.setInteractive(false);
         this.setBoundingType("circle");
         this.radius = 16;
@@ -712,18 +666,18 @@ tm.define("Player", {
 /*
  * うどん
  */
-tm.define("Udon", {
-    superClass: "tm.app.Sprite",
+phina.define("Udon", {
+    superClass: "Sprite",
 
     init: function (posX, posY) {
         this.spriteName = "udon";
-        this.superInit(this.spriteName, 128, 128);
+        this.superInit(this.spriteName);
         this.direct = '';
         this.setInteractive(false);
         this.setBoundingType("circle");
         this.radius = 128;
-        this.vec = tm.geom.Vector2(0, 0);
-        this.setPosition(posX, posY).setScale(1, 1);
+        this.vec = phina.geom.Vector2(0, 0);
+        this.setPosition(posX, posY).setSize(128, 128).setScale(1, 1);
     },
 
     update: function (app) {
@@ -737,8 +691,8 @@ tm.define("Udon", {
         if (this.y > SCREEN_HEIGHT + 64) this.y = 0 - 64;
 
         // 自機との衝突判定
-        if (this.isHitElement(player)) {
-            coinSE.play();
+        if (this.hitTestElement(player)) {
+            SoundManager.play("coin_se");
             var pnt = 2 ** player.consecutiveHitCounter;   // 1 2 4 8 16 32;
             nowScore += pnt
             console.log("s=" + player.consecutiveHitStatus + " p=" + pnt);
@@ -757,20 +711,20 @@ tm.define("Udon", {
 });
 
 /*
- * Enemey
+ * Enemy
  */
-tm.define("Enemy", {
-    superClass: "tm.app.Sprite",
+phina.define("Enemy", {
+    superClass: "Sprite",
 
     init: function (posX, posY, spdX, spdY) {
         this.spriteName = "enemy";
-        this.superInit(this.spriteName, 128, 128);
+        this.superInit(this.spriteName);
         this.direct = '';
         this.setInteractive(false);
         this.setBoundingType("circle");
         this.radius = 80;
-        this.vec = tm.geom.Vector2(spdX, spdY);
-        this.setPosition(posX, posY).setScale(1, 1);
+        this.vec = phina.geom.Vector2(spdX, spdY);
+        this.setPosition(posX, posY).setSize(128, 128).setScale(1, 1);
         this.zRot = (Math.random() * 5) - 2; // ゲームに影響しないのでMath.random()を使う
     },
 
@@ -787,7 +741,7 @@ tm.define("Enemy", {
         this.rotation += this.zRot;
 
         // 自機との衝突判定
-        if (this.isHitElement(player)) {
+        if (this.hitTestElement(player)) {
             player.status = PL_STATUS.DEAD;
         }
     },
