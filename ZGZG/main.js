@@ -675,7 +675,7 @@ phina.define("Udon", {
         this.direct = '';
         this.setInteractive(false);
         this.setBoundingType("circle");
-        this.radius = 128;
+        this.radius = 64;
         this.vec = phina.geom.Vector2(0, 0);
         this.setPosition(posX, posY).setSize(128, 128).setScale(1, 1);
     },
@@ -722,7 +722,7 @@ phina.define("Enemy", {
         this.direct = '';
         this.setInteractive(false);
         this.setBoundingType("circle");
-        this.radius = 80;
+        this.radius = 64;
         this.vec = phina.geom.Vector2(spdX, spdY);
         this.setPosition(posX, posY).setSize(128, 128).setScale(1, 1);
         this.zRot = (Math.random() * 5) - 2; // ゲームに影響しないのでMath.random()を使う
