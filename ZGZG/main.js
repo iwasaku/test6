@@ -116,6 +116,7 @@ phina.main(function () {
         width: SCREEN_WIDTH,
         height: SCREEN_HEIGHT,
         assets: ASSETS,
+        backgroundColor: 'black',
         fps: FPS,
 
         // シーンのリストを引数で渡す
@@ -156,6 +157,44 @@ phina.main(function () {
 });
 
 /*
+* ローディング画面をオーバーライド
+*/
+phina.define('LoadingScene', {
+    superClass: 'DisplayScene',
+
+    init: function (options) {
+        this.superInit(options);
+        // 背景色
+
+        var self = this;
+        var loader = phina.asset.AssetLoader();
+
+        // 明滅するラベル
+        let label = phina.display.Label({
+            text: "",
+            fontSize: 64,
+            fill: 'white',
+        }).addChildTo(this).setPosition(SCREEN_CENTER_X, SCREEN_CENTER_Y);
+
+        // ロードが進行したときの処理
+        loader.onprogress = function (e) {
+            // 進捗具合を％で表示する
+            label.text = "{0}%".format((e.progress * 100).toFixed(0));
+        };
+
+        // ローダーによるロード完了ハンドラ
+        loader.onload = function () {
+            // Appコアにロード完了を伝える（==次のSceneへ移行）
+            self.flare('loaded');
+        };
+
+        // ロード開始
+        loader.load(options.assets);
+    },
+
+});
+
+/*
  * ロゴ
  */
 phina.define("LogoScene", {
@@ -163,7 +202,6 @@ phina.define("LogoScene", {
 
     init: function (option) {
         this.superInit(option);
-        this.backgroundColor = 'black';
         this.localTimer = 0;
     },
 
@@ -184,7 +222,6 @@ phina.define("TitleScene", {
 
     init: function (option) {
         this.superInit(option);
-        this.backgroundColor = 'black';
 
         this.titleLabel = Label({
             text: "ZG-ZG SPTNK",
@@ -259,7 +296,6 @@ phina.define("GameScene", {
 
     init: function (option) {
         this.superInit(option);
-        this.backgroundColor = 'black';
 
         group0 = DisplayElement().addChildTo(this);
         group1 = DisplayElement().addChildTo(this);
