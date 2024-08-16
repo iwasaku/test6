@@ -64,27 +64,6 @@ var PL_STATUS = defineEnum({
     },
 });
 
-var group0 = null;
-var group1 = null;
-var group2 = null;
-var group3 = null;
-var player = null;
-var bgX = SCREEN_WIDTH / 2;
-var bgBackY = 0;
-var bgMiddleY = 0;
-var bgFrontY = 0;
-var player = null;
-var stageInitTimer = 0;
-var stageNum = 0;
-var stageTimer = 0;
-var stageUdonNum = 0;
-var enemyArray = [];
-var udonArray = [];
-var nowScore = 0;
-var totalSec = 0;
-var randomSeed = 3557;
-var randomMode = Boolean(0);
-
 const stageUdonNumTbl = [
     1,
     2,
@@ -109,6 +88,32 @@ const stageEnemyNumTbl = [
     13,
     13,
 ];
+
+var group0 = null;
+var group1 = null;
+var group2 = null;
+var group3 = null;
+var player = null;
+var bgX = SCREEN_WIDTH / 2;
+var bgBackY = 0;
+var bgMiddleY = 0;
+var bgFrontY = 0;
+var player = null;
+var stageInitTimer = 0;
+var stageNum = 0;
+var stageTimer = 0;
+var stageUdonNum = 0;
+var enemyArray = [];
+var udonArray = [];
+var nowScore = 0;
+var totalSec = 0;
+var randomSeed = 3557;
+var randomMode = Boolean(0);
+
+// 共有ボタン用
+let postText = null;
+const postURL = "https://iwasaku.github.io/test6/ZGZG/";
+const postTags = "#ネムレス #NEMLESSS";
 
 phina.main(function () {
     var app = GameApp({
@@ -203,14 +208,22 @@ phina.define("LogoScene", {
     init: function (option) {
         this.superInit(option);
         this.localTimer = 0;
+        this.font1 = false;
+        this.font2 = false;
     },
 
     update: function (app) {
-        // フォント読み込み待ち
+        // フォントロード完了待ち
         var self = this;
-        document.fonts.load('12px "Press Start 2P"').then(function () {
-            self.exit();
+        document.fonts.load('10pt "Press Start 2P"').then(function () {
+            self.font1 = true;
         });
+        document.fonts.load('10pt "icomoon"').then(function () {
+            self.font2 = true;
+        });
+        if (this.font1 && this.font2) {
+            self.exit();
+        }
     }
 });
 
@@ -280,11 +293,6 @@ phina.define("TitleScene", {
     },
 
     update: function (app) {
-        app.background = "rgba(0, 0, 0, 1.0)"; // 背景色
-        // 時間が来たらデモへ
-        //        if(++this.localTimer >= 5*app.fps){
-        //            this.exit();
-        //        }
     }
 });
 
@@ -419,17 +427,68 @@ phina.define("GameScene", {
             width: SCREEN_WIDTH,
             height: SCREEN_HEIGHT,
         }).addChildTo(group2)
-        this.tweetButton = Button({
-            text: "POST",
+
+        // X
+        this.xButton = Button({
+            text: String.fromCharCode(0xe902),
             fontSize: 32,
-            fontFamily: FONT_FAMILY,
+            fontFamily: "icomoon",
+            fill: "#7575EF",
+            x: SCREEN_CENTER_X - 160 - 80,
+            y: SCREEN_CENTER_Y + (SCREEN_CENTER_Y / 2),
+            cornerRadius: 8,
+            width: 60,
+            height: 60,
+        }).addChildTo(group3);
+        this.xButton.onclick = function () {
+            // https://developer.x.com/en/docs/twitter-for-websites/tweet-button/guides/web-intent
+            let shareURL = "https://x.com/intent/tweet?text=" + encodeURIComponent(postText + "\n" + postTags + "\n") + "&url=" + encodeURIComponent(postURL);
+            window.open(shareURL);
+        };
+        this.xButton.alpha = 0.0;
+        this.xButton.sleep();
+
+        // threads
+        this.threadsButton = Button({
+            text: String.fromCharCode(0xe901),
+            fontSize: 32,
+            fontFamily: "icomoon",
             fill: "#7575EF",
             x: SCREEN_CENTER_X - 160,
             y: SCREEN_CENTER_Y + (SCREEN_CENTER_Y / 2),
             cornerRadius: 8,
-            width: 240,
+            width: 60,
             height: 60,
         }).addChildTo(group3);
+        this.threadsButton.onclick = function () {
+            // https://developers.facebook.com/docs/threads/threads-web-intents/
+            // web intentでのハッシュタグの扱いが環境（ブラウザ、iOS、Android）によって違いすぎるので『#』を削って通常の文字列にしておく
+            let shareURL = "https://www.threads.net/intent/post?text=" + encodeURIComponent(postText + "\n\n" + postTags.replace(/#/g, "")) + "&url=" + encodeURIComponent(postURL);
+            window.open(shareURL);
+        };
+        this.threadsButton.alpha = 0.0;
+        this.threadsButton.sleep();
+
+        // bluesky
+        this.bskyButton = Button({
+            text: String.fromCharCode(0xe900),
+            fontSize: 32,
+            fontFamily: "icomoon",
+            fill: "#7575EF",
+            x: SCREEN_CENTER_X - 160 + 80,
+            y: SCREEN_CENTER_Y + (SCREEN_CENTER_Y / 2),
+            cornerRadius: 8,
+            width: 60,
+            height: 60,
+        }).addChildTo(group3);
+        this.bskyButton.onclick = function () {
+            // https://docs.bsky.app/docs/advanced-guides/intent-links
+            let shareURL = "https://bsky.app/intent/compose?text=" + encodeURIComponent((postText + "\n" + postTags + "\n" + postURL));
+            window.open(shareURL);
+        };
+        this.bskyButton.alpha = 0.0;
+        this.bskyButton.sleep();
+
         this.restartButton = Button({
             text: "RESTART",
             fontSize: 32,
@@ -444,9 +503,7 @@ phina.define("GameScene", {
 
         this.gameOverLabel.alpha = 0.0;
         this.screenButton.alpha = 0.0;
-        this.tweetButton.alpha = 0.0;
         this.restartButton.alpha = 0.0;
-        this.tweetButton.sleep();
         this.restartButton.sleep();
 
         this.screenButton.onpointstart = function () {
@@ -625,19 +682,10 @@ phina.define("GameScene", {
                 SoundManager.play("fall_se");
                 this.stopBGM = true;
 
-                var self = this;
-                // tweet ボタン
-                var rmStr = "";
+                let rmStr = "";
                 if (randomMode) rmStr = "(RANDOM)"
-                this.tweetButton.onclick = function () {
-                    var twitterURL = phina.social.Twitter.createURL({
-                        type: "tweet",
-                        text: "ZG-ZG SPTNK" + rmStr + "　スコア: " + self.nowScoreLabel.text + "　ステージ：" + stageNum + "\n",
-                        hashtags: ["ネムレス", "NEMLESSS"],
-                        url: "https://iwasaku.github.io/test6/ZGZG/",
-                    });
-                    window.open(twitterURL);
-                };
+                postText = "ZG-ZG SPTNK" + rmStr + "\nスコア: " + this.nowScoreLabel.text + "\nステージ：" + stageNum;
+
                 // 10面以上クリアでRANDOMモード開放
                 if (stageNum >= 11) {
                     localStorage.setItem("rmEnable", "1");
@@ -649,10 +697,14 @@ phina.define("GameScene", {
                 this.buttonAlpha = 1.0;
             }
             this.gameOverLabel.alpha = this.buttonAlpha;
-            this.tweetButton.alpha = this.buttonAlpha;
+            this.xButton.alpha = this.buttonAlpha;
+            this.threadsButton.alpha = this.buttonAlpha;
+            this.bskyButton.alpha = this.buttonAlpha;
             this.restartButton.alpha = this.buttonAlpha;
             if (this.buttonAlpha > 0.7) {
-                this.tweetButton.wakeUp();
+                this.xButton.wakeUp();
+                this.threadsButton.wakeUp();
+                this.bskyButton.wakeUp();
                 this.restartButton.wakeUp();
             }
         }
